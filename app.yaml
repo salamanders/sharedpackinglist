@@ -1,0 +1,28 @@
+runtime: python312
+
+instance_class: F1
+
+handlers:
+  - url: /
+    static_files: website/index.html
+    upload: website/index\.html
+    secure: always
+
+  - url: /css
+    static_dir: website/css
+    secure: always
+
+  - url: /js
+    static_dir: website/js
+    secure: always
+    http_headers:
+      Access-Control-Allow-Origin: "*"
+
+  - url: /img
+    static_dir: website/img
+    secure: always
+
+  - url: /favicon\.ico
+    static_files: website/img/favicon.ico
+    upload: website/img/favicon\.ico
+    secure: always
