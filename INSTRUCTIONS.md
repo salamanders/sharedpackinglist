@@ -18,13 +18,13 @@
 * **Backend/Database:** Firebase Firestore (NoSQL, real-time document syncing via `onSnapshot`).
 * **Authentication:** Firebase Auth (Google Sign-In).
 * **State Management:** React Context + local state.
-* **Hosting:** Firebase Hosting or Vercel.
+* **Hosting:** Firebase Hosting.
 
 ## 3. Authentication & Family Security Model
 * **Mechanism:** Users authenticate via Google OAuth.
 * **Tenant Creation:** An initial user creates a "Family" group, generating a `familyId` and an invite code.
 * **Joining:** Other members log in, submit the invite code, and their `uid` is appended to the `Family` document's `members` array.
-* **Data Scoping:** ALL client-side Firestore queries must include `.where("familyId", "==", currentFamilyId)`.
+* **Data Scoping:** ALL client-side Firestore queries must include `.where("familyId", "==", currentFamilyId)`.  A user shouldn't be able to "mine the database" for other family IDs.
 
 ### Firestore Security Rules
 Deploy these rules exactly as written to lock down the database.
@@ -149,20 +149,21 @@ The interface must be heavily optimized for mobile (thumb-friendly).
 
 ## 6. Technical Implementation Directives
 1. **Optimistic UI:** When a user clicks a checkbox, instantly update the local state *before* awaiting the Firestore write confirmation to eliminate perceived latency.
-2. **Debounce Rapid Writes:** Implement a debounce utility to prevent spamming Firestore if a user taps a checkbox multiple times rapidly.
+2. **Debounce Rapid Writes:** (Low priority) Implement a debounce utility to prevent spamming Firestore if a user taps a checkbox multiple times rapidly.
 3. **Data Merging Logic:** Write a strict utility function for trip creation that takes `Array<Template>` and merges the `items` arrays. It must deduplicate items by name and allocation type (e.g., don't add "Toothpaste (Communal)" twice if two templates contain it).
-You’re right to call that out. The previous spec covers the "happy path" and core data logic, but it lacks the defensive engineering and structural constraints needed to keep an AI from hallucinating the architecture. When you give an AI a lean spec, it fills the gaps with its own assumptions—which often leads to spaghetti code. 
 
 ### 7. Offline Support (Crucial for Travel)
 * **Requirement:** The app must work in airplane mode or spotty hotel Wi-Fi.
 * **Implementation:** Antigravity must explicitly enable Firestore offline persistence (`enableIndexedDbPersistence()` in the Firebase JS SDK v8, or `initializeFirestore` with `localCache` in v9/v10). 
-* **Behavior:** Reads come from the local cache first. Writes are queued locally and sync automatically when the connection is restored. 
+* **Behavior:** Reads come from the local cache first. Writes are queued locally and sync automatically when the connection is restored.
+* The entire web page should be able to be loaded when bookmarked as a shortcut on a mobile phone - that goes direct to the latest trip.
 
 ### 8. Edge Cases & State Reconciliation
 The AI needs explicit instructions on how to handle state conflicts, otherwise it will write brittle logic.
-* **The "Late Joiner" Problem:** If a trip is created and *then* a new family member joins the group, the `packStatus` map for `INDIVIDUAL` items won't have their ID. 
+* **The "Late Joiner" Problem:** (Low prority) If a trip is created and *then* a new family member joins the group, the `packStatus` map for `INDIVIDUAL` items won't have their ID. 
     * *Directive:* The UI rendering logic must dynamically check the `Family.members` array. If a member exists in the family but not in an item's `packStatus`, the UI should treat their status as `false` by default and append them to the document on the next write.
 * **Template Duplication:** If a user accidentally applies the "Beach" template twice to the same trip, the merge utility must explicitly reject duplicate items based on the template's original `item.id`.
+* Editing who-has-to-pack-it: If one person adds "Snacks" for themself, another person should be able to set it as "me too, I should also pack snacks" and edit the "who this is for" flags on the item.
 
 ### 9. Strict TypeScript Interfaces
 To prevent the AI from drifting and hallucinating properties, mandate TypeScript and provide the exact interfaces it must use.
