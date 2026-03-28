@@ -203,3 +203,9 @@ AI coding agents perform significantly better when you dictate the scaffolding u
     ActiveTrip.tsx
 ```
 
+### Filtering Logic Rules for "[Just Me]" View
+To determine if a `TripItem` should be displayed when a user toggles the "[Just Me]" filter, the UI must use the following strict evaluation:
+
+* **If type === 'INDIVIDUAL':** Always return `true`. (Everyone, including the current user, needs their own version of this item, like socks).
+* **If type === 'SPECIFIC':** Return `true` ONLY IF `item.assigneeIds list includes currentUser.uid`. (e.g., If Caroline is assigned the camera, only she sees it in her 'Just Me' view.  If both Caroline and I both should pack sunglasses, then we should both be in the item.assigneeIds list). 
+* **If type === 'COMMUNAL':** Return `true` IF `item.packedBy === null` (nobody has packed it yet, so it is everyone's responsibility) OR IF `item.packedBy === currentUser.uid` (the current user packed it, so it should remain visible to them).
