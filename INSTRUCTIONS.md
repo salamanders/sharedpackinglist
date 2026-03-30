@@ -6,9 +6,9 @@
 **Why this specific design? (Context for Implementation)**
 * **The Template Model:** Families reuse packing lists. Starting from scratch every trip is tedious. We use a base "default" list and append "building blocks" (e.g., "Cold Weather," "Beach") so trips can be assembled modularly.
 * **Complex Allocation Logic:** Packing for a family isn't a simple checklist. Items fall into three strict categories:
-    * *Individual:* Everyone needs their own (e.g., Socks). 
-    * *Specific:* Only one designated person needs it (e.g., Dad's Glasses).
-    * *Communal:* One item for the whole family, packed by whoever gets to it first (e.g., Toothpaste).
+    * *Standard:* Zero, One, a Few, or All people in the family are expected to individually pack an item.
+    * *ALL:* A special "shortcut" flag on an item, indicating that everyone on the trip needs to pack their individual.  Semantically the same as each person being in the target list, but better (because it saves space) and more flexible (because if someone joins the trip late, it will be expected that they pack it as well).  Any item that is assigned to everyone to back should be "upgraded" to instead use the ALL flag. The most common flag. (e.g., Socks)
+    * *COMMUNAL:* A special "shortcut" flag on an item, indicating one item for the whole family, packed by whoever gets to it first (e.g., Band-Aids).
 * **Democratized Input:** Every authenticated family member must have full read/write access to add, edit, or check off items on both Active Trips and Templates. Packing is a collaborative effort.
 * **Strict Privacy:** Family data must be siloed. A tenant-based security model ensures no one outside the specific family group can read or write the data.
 
@@ -75,13 +75,13 @@ service cloud.firestore {
     {
       "id": "item_1",
       "name": "Heavy Coat",
-      "allocationType": "INDIVIDUAL" 
+      "allocationType": "ALL" 
     },
     {
       "id": "item_2",
-      "name": "Dad's Ski Goggles",
+      "name": "Driving Sunglasses",
       "allocationType": "SPECIFIC",
-      "defaultAssigneeId": "user_dad"
+      "defaultAssigneeIds": ["user_mom", "user_dad"]
     },
     {
       "id": "item_3",
@@ -106,7 +106,7 @@ Created by merging the `default` template and selected blocks. Any family member
     {
       "id": "inst_1",
       "name": "Socks",
-      "type": "INDIVIDUAL",
+      "type": "ALL",
       "packStatus": {
         "user_mom": true,
         "user_dad": false,
@@ -115,16 +115,17 @@ Created by merging the `default` template and selected blocks. Any family member
     },
     {
       "id": "inst_2",
-      "name": "Dad's Ski Goggles",
+      "name": "Snowboard Boots",
       "type": "SPECIFIC",
-      "assigneeId": "user_dad",
-      "isPacked": false
+      "packStatus": {
+         "user_dad": false,
+      }
     },
     {
       "id": "inst_3",
       "name": "Toothpaste",
       "type": "COMMUNAL",
-      "packedBy": null 
+      "packStatus": { }
     }
   ]
 }
@@ -148,11 +149,11 @@ The interface must be heavily optimized for mobile (thumb-friendly).
     * *Rule:* Tapping a specific user's avatar/checkbox updates `packStatus[targetUserId]` to `true`.
 
 ## 6. Technical Implementation Directives
-1. **Optimistic UI:** When a user clicks a checkbox, instantly update the local state *before* awaiting the Firestore write confirmation to eliminate perceived latency.
+1. **Optimistic UI:** (Low priority) When a user clicks a checkbox, instantly update the local state *before* awaiting the Firestore write confirmation to eliminate perceived latency.
 2. **Debounce Rapid Writes:** (Low priority) Implement a debounce utility to prevent spamming Firestore if a user taps a checkbox multiple times rapidly.
 3. **Data Merging Logic:** Write a strict utility function for trip creation that takes `Array<Template>` and merges the `items` arrays. It must deduplicate items by name and allocation type (e.g., don't add "Toothpaste (Communal)" twice if two templates contain it).
 
-### 7. Offline Support (Crucial for Travel)
+### 7. Offline Support (Phase 2)
 * **Requirement:** The app must work in airplane mode or spotty hotel Wi-Fi.
 * **Implementation:** Antigravity must explicitly enable Firestore offline persistence (`enableIndexedDbPersistence()` in the Firebase JS SDK v8, or `initializeFirestore` with `localCache` in v9/v10). 
 * **Behavior:** Reads come from the local cache first. Writes are queued locally and sync automatically when the connection is restored.
